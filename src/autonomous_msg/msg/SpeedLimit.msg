@@ -1,0 +1,3 @@
+float64 curr_limit
+float64 next_limit
+float64 dist_left

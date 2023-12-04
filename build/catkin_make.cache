@@ -1,0 +1,2 @@
+autonomous_msg:final_evaluation:final_project/final_autonomous_driving:final_project/final_map_maker:final_project/final_simulator
+-DCATKIN_DEVEL_PREFIX=/home/jungcow/2023_Autonomous_system_platform_final_project/devel -DCMAKE_INSTALL_PREFIX=/home/jungcow/2023_Autonomous_system_platform_final_project/install -G Unix Makefiles

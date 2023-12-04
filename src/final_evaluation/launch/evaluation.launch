@@ -1,0 +1,100 @@
+<launch>
+
+    <arg name="path" default="$(find final_simulator)/csv" />
+
+    <arg name="refPath" default="$(find final_evaluation)/csv" />
+    <arg name="laneId" default="1" />
+    <arg name="numTargetVehicle" default="3"/>
+    <arg name="timeLimit" default="76.06"/>
+    <arg name="lidarROI" default="100.0"/>
+
+    <arg name="parkingRegion_x" default="x" />
+    <arg name="parkingRegion_y" default="y" />
+    
+    <!-- hard map -->
+    <arg name="parkingSlot0_center_x" default="271.89889025" />
+    <arg name="parkingSlot0_center_y" default="380.61157575" />
+
+    <arg name="parkingSlot1_center_x" default="268.54821975" />
+    <arg name="parkingSlot1_center_y" default="391.08892175" />
+
+    <arg name="parkingSlot2_center_x" default="275.24902375" />
+    <arg name="parkingSlot2_center_y" default="370.13422975" />
+
+    <!-- easy map -->
+    <!-- <arg name="parkingSlot0_center_x" default="459.4089925" />
+    <arg name="parkingSlot0_center_y" default="-129.0220145" />
+
+    <arg name="parkingSlot1_center_x" default="448.7442975" />
+    <arg name="parkingSlot1_center_y" default="-131.717243" />
+
+    <arg name="parkingSlot2_center_x" default="470.073688" />
+    <arg name="parkingSlot2_center_y" default="-126.3267865" /> -->
+
+    <node pkg="final_evaluation" type="evaluation" name="evaluation" output="screen">
+        <param name="refPath" value="$(arg refPath)" type="str" />
+        <param name="laneId" value="$(arg laneId)" type="str" />
+        <param name="numTargetVehicle" value="$(arg numTargetVehicle)" type="int" />
+        <param name="timeLimit" value="$(arg timeLimit)" type="double" />
+        <param name="lidarROI" value="$(arg lidarROI)" type="double" />
+
+        <!-- <param name="parkingRegion_x" value="$(arg parkingRegion_x)" type="double" />
+        <param name="parkingRegion_y" value="$(arg parkingRegion_y)" type="double" /> -->
+
+        <param name="parkingSlot0_center_x" value="$(arg parkingSlot0_center_x)" type="double" />
+        <param name="parkingSlot0_center_y" value="$(arg parkingSlot0_center_y)" type="double" />
+        <param name="parkingSlot1_center_x" value="$(arg parkingSlot1_center_x)" type="double" />
+        <param name="parkingSlot1_center_y" value="$(arg parkingSlot1_center_y)" type="double" />
+        <param name="parkingSlot2_center_x" value="$(arg parkingSlot2_center_x)" type="double" />
+        <param name="parkingSlot2_center_y" value="$(arg parkingSlot2_center_y)" type="double" />
+    
+    </node>
+
+    <!-- Create surrounding vehicles -->
+    <!-- <group ns="front/1">
+        <node pkg="final_evaluation" type="master_vehicle" name="master_vehicle">
+            <param name="ns" value="front/1" />
+            <param name="init_x" value="224.855046" />
+            <param name="init_y" value="171.982144" />
+            <param name="init_yaw" value="0.0" />
+            <param name="init_speed" value="12" />
+            <param name="decelerate_x" value="0" />
+            <param name="decelerate_y" value="0" />
+            <param name="decelerate_speed" value="11" />
+            <param name="refPath" value="$(arg refPath)" type="str" />
+            <param name="laneId" value="0" type="str" />
+        </node>
+        <node pkg="final_simulator" type="display" name="display" output="screen"/>
+    </group>
+    <group ns="front/2">
+        <node pkg="final_evaluation" type="master_vehicle" name="master_vehicle">
+            <param name="ns" value="front/2" />
+            <param name="init_x" value="221.556836" />
+            <param name="init_y" value="174.245286" />
+            <param name="init_yaw" value="0.0" />
+            <param name="init_speed" value="12" />
+            <param name="decelerate_x" value="314.239618" />
+            <param name="decelerate_y" value="207.539068" />
+            <param name="decelerate_speed" value="11" />
+            <param name="refPath" value="$(arg refPath)" type="str" />
+            <param name="laneId" value="1" type="str" />
+        </node>
+        <node pkg="final_simulator" type="display" name="display" />
+    </group>
+    <group ns="front/3">
+        <node pkg="final_evaluation" type="master_vehicle" name="master_vehicle">
+            <param name="ns" value="front/3" />
+            <param name="init_x" value="218.258626" />
+            <param name="init_y" value="176.508428" />
+            <param name="init_yaw" value="0.0" />
+            <param name="init_speed" value="12" />
+            <param name="decelerate_x" value="0.0" />
+            <param name="decelerate_y" value="0.0" />
+            <param name="decelerate_speed" value="0" />
+            <param name="refPath" value="$(arg refPath)" type="str" />
+            <param name="laneId" value="2" type="str" />
+        </node>
+        <node pkg="final_simulator" type="display" name="display" />
+    </group> -->
+
+</launch>
