@@ -182,7 +182,7 @@ public:
     for (int i = 0; i < bin_size; i++)
     {
       y_val.push_back(min_y + (max_y - min_y) * i / (bin_size - 1));
-      ROS_INFO("Y bin: %lf", y_val.back());
+      // ROS_INFO("Y bin: %lf", y_val.back());
     }
 
     for (size_t i = 0; i < y_val.size() - 1; i++)
@@ -196,6 +196,29 @@ public:
     return {ymean, count_arr};
   }
 
+  void find_peak(vector<double> y_val, vector<size_t> histo_data)
+  {
+    double first, second;
+
+    first = second = 0;
+    for (size_t i = 0; i < histo_data.size(); i++)
+    {
+      if (first < histo_data[i])
+      {
+        first = i;
+        second = first;
+      }
+      else if (second < histo_data[i])
+      {
+        second = i;
+      }
+    }
+    if (first != 0 && second != 0)
+      ROS_INFO("first, second; (%lf, %lf)", y_val[first], y_val[second]);
+    else if (first != 0)
+      ROS_INFO("first, second: (%lf, %lf)", y_val[first], y_val[second]);
+  }
+
   void polyfitLane()
   {
 
@@ -207,24 +230,16 @@ public:
     m_polyLanesDetected.frame_id = m_vehicle_namespace_param + "/body";
     m_polyLanesDetected.polyfitLanes.clear();
 
-    // if (!m_ROILanePoints.point.empty())
-    // {
-    //   for (int i = 0; i < m_ROILanePoints.point.size(); i++)
-    //   {
-    //     ROS_INFO("point info: %lf, %lf, %lf", m_ROILanePoints.point[i].x, m_ROILanePoints.point[i].y, m_ROILanePoints.point[i].arclength);
-    //   }
-    // }
-
     m_ROILanes.frame_id = m_vehicle_namespace_param + "/body";
     m_ROILanes.lane.clear();
 
     // TODO
     // Perceive lane info (make m_polyLanes)
 
+    std::pair<std::vector<double>, std::vector<size_t>> peak_data;
     if (m_ROILanePoints.point.size())
-      peak_intensity(m_ROILanePoints.point, 10);
-
-    // guassian_blur();
+      peak_data = peak_intensity(m_ROILanePoints.point, 10);
+    find_peak(peak_data.first, peak_data.second);
     // detectLine(m_ROILanePoints);
     // separateLine(m_ROILanePoints);
 
@@ -388,7 +403,7 @@ int main(int argc, char **argv)
 
   double prev_csvLaneMarkTime = ros::Time::now().toSec();
   // The approximate control time is 100 Hz
-  ros::Rate loop_rate(1);
+  ros::Rate loop_rate(100);
   while (ros::ok())
   {
 

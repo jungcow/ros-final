@@ -1,8 +1,0 @@
-prefix=/home/jungcow/2023_Autonomous_system_platform_final_project/install
-
-Name: final_autonomous_driving
-Description: Description of final_autonomous_driving
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib -lfinal_autonomous_driving
-Requires: roscpp std_msgs

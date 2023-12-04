@@ -1,2 +1,0 @@
-set(autonomous_msg_MESSAGE_FILES "msg/AccelBrakeSteering.msg;msg/VehicleOutput.msg;msg/VehicleOutputs.msg;msg/VehicleInput.msg;msg/PolyfitLaneData.msg;msg/LanePointData.msg;msg/LanePointDataArray.msg;msg/PolyfitLaneDataArray.msg;msg/EnvironmentParam.msg;msg/EnvironmentMode.msg;msg/EnvironmentModeArea.msg;msg/EnvironmentDetected.msg;msg/PointWithArclength.msg;msg/SpeedLimit.msg")
-set(autonomous_msg_SERVICE_FILES "")

@@ -1,8 +1,0 @@
-prefix=/home/jungcow/2023_Autonomous_system_platform_final_project/devel
-
-Name: final_evaluation
-Description: Description of final_evaluation
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib -lfinal_evaluation
-Requires: roscpp std_msgs

@@ -1,8 +1,0 @@
-prefix=/home/jungcow/2023_Autonomous_system_platform_final_project/devel
-
-Name: autonomous_msg
-Description: Description of autonomous_msg
-Version: 0.0.0
-Cflags: -I/home/jungcow/2023_Autonomous_system_platform_final_project/devel/include
-Libs: -L${prefix}/lib 
-Requires: message_runtime std_msgs geometry_msgs
