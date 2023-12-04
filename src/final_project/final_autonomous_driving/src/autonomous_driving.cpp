@@ -144,39 +144,56 @@ public:
     return sqrt(pow(2., (x1 - x2)) + pow(2., (y1 - y2)));
   }
 
-  void separateLine(autonomous_msg::LanePointData &lane_points)
+  std::vector<int> get_index_inrange(const Eigen::VectorXd &arr, double start, double end)
   {
+    std::vector<int> idx;
+    for (int i = 0; i < arr.size(); i++)
+    {
+      if (arr[i] >= start && arr[i] < end)
+      {
+        idx.push_back(i);
+      }
+    }
+    return idx;
   }
 
-  void peak_intensity(autonomous_msg::LanePointData &lane_points, int bin_size)
+  std::pair<std::vector<double>, std::vector<size_t>> peak_intensity(autonomous_msg::LanePointData::_point_type &points, int bin_size)
   {
-    Eigen::VectorXd X;
-    Eigen::VectorXd Y;
-
-    autonomous_msg::LanePointData::_point_type points;
+    Eigen::VectorXd X(500);
+    Eigen::VectorXd Y(500);
 
     for (size_t i = 0; i < points.size(); i++)
     {
       double x = points[i].x;
       double y = points[i].y;
+
       X(i) = x;
       Y(i) = y;
     }
+
     double min_y = std::ceil(Y.minCoeff());
     double max_y = std::ceil(Y.maxCoeff());
 
-    std::vector<double> y_val, avg_intensity, ymean;
+    ROS_INFO("min_y, max_y: (%lf, %lf)", min_y, max_y);
+
+    std::vector<double> y_val, ymean;
+    std::vector<size_t> count_arr;
 
     for (int i = 0; i < bin_size; i++)
     {
       y_val.push_back(min_y + (max_y - min_y) * i / (bin_size - 1));
-      ROS_INFO("Y bin: %d", y_val.back());
+      ROS_INFO("Y bin: %lf", y_val.back());
     }
 
     for (size_t i = 0; i < y_val.size() - 1; i++)
     {
-      // std::vector<int> index =
+      std::vector<int> index = get_index_inrange(Y, y_val[i], y_val[i + 1]);
+
+      size_t count = index.size();
+      count_arr.push_back(count);
+      ymean.push_back((y_val[i] + y_val[i + 1]) / 2);
     }
+    return {ymean, count_arr};
   }
 
   void polyfitLane()
@@ -204,7 +221,8 @@ public:
     // TODO
     // Perceive lane info (make m_polyLanes)
 
-    // peak_intensity(m_ROILanePoints, 10);
+    if (m_ROILanePoints.point.size())
+      peak_intensity(m_ROILanePoints.point, 10);
 
     // guassian_blur();
     // detectLine(m_ROILanePoints);
@@ -370,7 +388,7 @@ int main(int argc, char **argv)
 
   double prev_csvLaneMarkTime = ros::Time::now().toSec();
   // The approximate control time is 100 Hz
-  ros::Rate loop_rate(100);
+  ros::Rate loop_rate(1);
   while (ros::ok())
   {
 
