@@ -1,5 +1,5 @@
 <launch>
-  <arg name="use_manual_inputs" default="true" />
+  <arg name="use_manual_inputs" default="false" />
 
   <arg name="path" default="$(find final_simulator)/csv" />
   <arg name="ns1" default="ego" />

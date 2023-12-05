@@ -49,16 +49,16 @@ EnvironmentSetup::EnvironmentSetup(){
    // m_iceParam.push_back(IceParam(400.0,200.0, 40.0, 2000.0, 2000.0));
 
    // 2. map : easy
-   // m_iceParam.push_back(IceParam(99.0,33.0, 20.0, 2000.0, 2000.0));
-   // m_iceParam.push_back(IceParam(116.0,180.0, 30.0, 2000.0, 2000.0));
-   // m_iceParam.push_back(IceParam(290.0,100.0, 30.0, 2000.0, 2000.0));
-   // m_iceParam.push_back(IceParam(401.0,70.0, 5.0, 2000.0, 2000.0));
-
-   // 3. map : hard
    m_iceParam.push_back(IceParam(99.0,33.0, 20.0, 2000.0, 2000.0));
    m_iceParam.push_back(IceParam(116.0,180.0, 30.0, 2000.0, 2000.0));
-   m_iceParam.push_back(IceParam(304.0,26.0, 30.0, 2000.0, 2000.0));
-   m_iceParam.push_back(IceParam(361.0,405.0, 5.0, 2000.0, 2000.0));
+   m_iceParam.push_back(IceParam(290.0,100.0, 30.0, 2000.0, 2000.0));
+   m_iceParam.push_back(IceParam(401.0,70.0, 5.0, 2000.0, 2000.0));
+
+   // 3. map : hard
+   // m_iceParam.push_back(IceParam(99.0,33.0, 20.0, 2000.0, 2000.0));
+   // m_iceParam.push_back(IceParam(116.0,180.0, 30.0, 2000.0, 2000.0));
+   // m_iceParam.push_back(IceParam(304.0,26.0, 30.0, 2000.0, 2000.0));
+   // m_iceParam.push_back(IceParam(361.0,405.0, 5.0, 2000.0, 2000.0));
 }
 
 EnvironmentSetup::~EnvironmentSetup(){}
