@@ -185,10 +185,14 @@ public:
 
     ROS_INFO("Current Curvature: %lf", m_curr_curvature);
 
-    if (abs(m_curr_curvature) > 0.05)
-      m_curr_curvature = m_curr_curvature > 0 ? 0.05 : -0.05;
+    double abs_curvature = m_curr_curvature > 0 ? m_curr_curvature : -1 * m_curr_curvature;
 
-    const double x_range_limit = 16 - 240 * abs(m_curr_curvature);
+    double x_range_limit = 17;
+
+    if (abs_curvature > 0.025)
+      abs_curvature = 0.025; // saturated
+
+    x_range_limit = x_range_limit - abs_curvature * 500;
 
     ROS_INFO("Current X View Limit: %lf", x_range_limit);
 
@@ -378,10 +382,10 @@ public:
     if (no_lane_flag)
     {
       autonomous_msg::PolyfitLaneData polyLane;
-      polyLane.a0 = prev_midpolyfit[0];
-      polyLane.a1 = prev_midpolyfit[1];
-      polyLane.a2 = prev_midpolyfit[2];
-      polyLane.a3 = prev_midpolyfit[3];
+      polyLane.a0 = 0;
+      polyLane.a1 = 0;
+      polyLane.a2 = 0;
+      polyLane.a3 = 0;
       m_polyLanes.polyfitLanes.push_back(polyLane);
       m_polyLanes.polyfitLanes.push_back(polyLane);
     }
@@ -406,35 +410,23 @@ public:
       if (abs(m_curr_curvature) < 0.007)
       {
         // straight line
-        // targetSpeed_ms;
       }
-      else if (abs(m_curr_curvature) < 0.01 || m_iceMode != "Asphalt")
-      {
+      else if (abs(m_curr_curvature) < 0.025 && m_iceMode != "Ice")
         targetSpeed_ms = m_speedLimit.curr_limit > 10. ? 10 : m_speedLimit.curr_limit;
-      }
       else
       {
         // curve
-        if (m_curr_curvature > 0)
-          m_curr_curvature = 0.07; // max curvature
-        else
-          m_curr_curvature = -0.07;
+        double abs_curvature = m_curr_curvature > 0 ? m_curr_curvature : -1 * m_curr_curvature;
+        if (abs_curvature > 0.07)
+          abs_curvature = 0.07; // max curvature
 
-        if (targetSpeed_ms > 40)
-        {
-          targetSpeed_ms = 40;
-        }
+        if (targetSpeed_ms > 30)
+          targetSpeed_ms = 30;
 
-        targetSpeed_ms = targetSpeed_ms - (500 * abs(m_curr_curvature));
+        targetSpeed_ms = targetSpeed_ms - (450 * abs_curvature);
         if (targetSpeed_ms < 5)
-        {
           targetSpeed_ms = m_speedLimit.curr_limit > 5. ? 5 : m_speedLimit.curr_limit;
-        }
       }
-      // if (no_lane_flag)
-      // {
-      //   targetSpeed_ms = 0;
-      // }
 
       ROS_INFO("Current Target Speed: %lf", targetSpeed_ms);
 
@@ -498,9 +490,9 @@ public:
     m_midPolyLane.a1 = (a1[0] + a1[1]) / 2.;
     m_midPolyLane.a2 = (a2[0] + a2[1]) / 2.;
     m_midPolyLane.a3 = (a3[0] + a3[1]) / 2.;
-    // if (abs(m_midPolyLane.a2) > 0.05)
+    // if (abs(m_midPolyLane.a1 - prev_midpolyfit[1]) > 0.5)
     // {
-    //   ROS_INFO("Too Far Track: %lf", m_midPolyLane.a0);
+    //   ROS_INFO("Too Heading Change Track: %lf", m_midPolyLane.a1);
     //   m_midPolyLane.a0 = prev_midpolyfit[0];
     //   m_midPolyLane.a1 = prev_midpolyfit[1];
     //   m_midPolyLane.a2 = prev_midpolyfit[2];
