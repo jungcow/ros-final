@@ -17,6 +17,8 @@
 using namespace std;
 
 // bool no_lane_flag = false;
+bool parking_flag = false;
+double no_lane_elapsed_time;
 
 class AutonomousDriving
 {
@@ -51,7 +53,9 @@ protected:
 public:
   AutonomousDriving()
   {
-    m_marker_pub = m_rosNodeHandler.advertise<visualization_msgs::Marker>("my_lane_marker_pub", 10);
+    // m_marker_pub = m_rosNodeHandler.advertise<visualization_msgs::Marker>("my_lane_marker_pub", 10);
+    memset(prev_polyfit, 0, sizeof(double) * 8);
+    memset(prev_midpolyfit, 0, sizeof(double) * 4);
 
     m_rosPubDrivingWay =
         m_rosNodeHandler.advertise<autonomous_msg::PolyfitLaneData>(
@@ -145,32 +149,32 @@ public:
     m_ROILanePoints = *msg;
   }
 
-  void point_marker(autonomous_msg::LanePointData::_point_type &points)
-  {
-    marker.header.frame_id = "map";
-    marker.header.stamp = ros::Time::now();
-    marker.ns = "points";
-    marker.id = 0;
+  // void point_marker(autonomous_msg::LanePointData::_point_type &points)
+  // {
+  //   marker.header.frame_id = "map";
+  //   marker.header.stamp = ros::Time::now();
+  //   marker.ns = "points";
+  //   marker.id = 0;
 
-    marker.type = visualization_msgs::Marker::POINTS;
-    marker.action = visualization_msgs::Marker::ADD;
+  //   marker.type = visualization_msgs::Marker::POINTS;
+  //   marker.action = visualization_msgs::Marker::ADD;
 
-    marker.pose.orientation.w = 1.0;
+  //   marker.pose.orientation.w = 1.0;
 
-    marker.scale.x = 0.2;
-    marker.scale.y = 0.2;
+  //   marker.scale.x = 0.2;
+  //   marker.scale.y = 0.2;
 
-    marker.color.r = 1.0;
-    marker.color.a = 1.0;
-    for (auto &point : points)
-    {
-      geometry_msgs::Point p;
-      p.x = point.x;
-      p.y = point.y;
-      p.z = 0;
-      marker.points.push_back(p);
-    }
-  }
+  //   marker.color.r = 1.0;
+  //   marker.color.a = 1.0;
+  //   for (auto &point : points)
+  //   {
+  //     geometry_msgs::Point p;
+  //     p.x = point.x;
+  //     p.y = point.y;
+  //     p.z = 0;
+  //     marker.points.push_back(p);
+  //   }
+  // }
 
   autonomous_msg::LanePointDataArray::_lane_type
   separateAndPushLane(autonomous_msg::LanePointData::_point_type &points)
@@ -187,12 +191,17 @@ public:
 
     double abs_curvature = m_curr_curvature > 0 ? m_curr_curvature : -1 * m_curr_curvature;
 
-    double x_range_limit = 17;
+    double x_range_limit = 19;
 
     if (abs_curvature > 0.025)
       abs_curvature = 0.025; // saturated
 
     x_range_limit = x_range_limit - abs_curvature * 500;
+
+    if (abs_curvature < 0.001)
+    {
+      x_range_limit = 19;
+    }
 
     ROS_INFO("Current X View Limit: %lf", x_range_limit);
 
@@ -265,13 +274,12 @@ public:
 
     // TODO
     // Perceive lane info (make m_polyLanes)
-    if (m_ROILanePoints.point.empty())
+    if (m_vehicleState.velocity < 0.01)
     {
-      memset(prev_polyfit, 0, sizeof(double) * 8);
       return;
     }
 
-    point_marker(m_ROILanePoints.point);
+    // point_marker(m_ROILanePoints.point);
 
     m_ROILanes.lane = separateAndPushLane(m_ROILanePoints.point);
     // m_ROILanes.lane[0].point = removeOutlier(m_ROILanes.lane[0].point);
@@ -382,16 +390,26 @@ public:
     if (no_lane_flag)
     {
       autonomous_msg::PolyfitLaneData polyLane;
+      m_polyLanes.polyfitLanes.pop_back();
+      m_polyLanes.polyfitLanes.pop_back();
       polyLane.a0 = 0;
       polyLane.a1 = 0;
       polyLane.a2 = 0;
       polyLane.a3 = 0;
       m_polyLanes.polyfitLanes.push_back(polyLane);
       m_polyLanes.polyfitLanes.push_back(polyLane);
+      if (ros::Time::now().toSec() - no_lane_elapsed_time > 2)
+      {
+        parking_flag = true;
+      }
+    }
+    else
+    {
+      no_lane_elapsed_time = ros::Time::now().toSec();
     }
     m_rosPubPolyLanes.publish(m_polyLanes);
     // m_rosPubPolyLanesDetected.publish(m_polyLanesDetected);
-    // m_rosPubPolyLanesDetected.publish(m_polyLanes);
+    m_rosPubPolyLanesDetected.publish(m_polyLanes);
   }
 
   void controlVehicleSpeed()
@@ -400,10 +418,21 @@ public:
     // Change this function to make the vehicle follow target speed (input of the function(parameters) can be modified)
     double targetSpeed_ms;
     ROS_INFO("Curr Speed Limit: %lf, Mode: %s", m_speedLimit.curr_limit, m_iceMode.c_str());
-    if (m_speedLimit.curr_limit >= 0.01)
-      targetSpeed_ms = m_speedLimit.curr_limit;
-    else
-      targetSpeed_ms = 10;
+
+    double current_limit = m_speedLimit.curr_limit * 0.95;
+    double next_limit = m_speedLimit.next_limit * 0.95;
+    double remain_distance = m_speedLimit.dist_left;
+
+    if (current_limit < 0.01)
+      return;
+    targetSpeed_ms = current_limit;
+    if (remain_distance < 10 && next_limit < current_limit)
+      targetSpeed_ms = next_limit;
+
+    if (parking_flag)
+    {
+      targetSpeed_ms = 0;
+    }
 
     if (m_use_manual_inputs == false)
     {
@@ -411,8 +440,16 @@ public:
       {
         // straight line
       }
+      else if (m_iceMode == "Ice")
+      {
+        // road mode is ice
+        targetSpeed_ms = targetSpeed_ms > 7 ? 7 : targetSpeed_ms;
+      }
       else if (abs(m_curr_curvature) < 0.025 && m_iceMode != "Ice")
-        targetSpeed_ms = m_speedLimit.curr_limit > 10. ? 10 : m_speedLimit.curr_limit;
+      {
+        // gentle curvature
+        targetSpeed_ms = targetSpeed_ms > 15. ? 15 : targetSpeed_ms;
+      }
       else
       {
         // curve
@@ -423,12 +460,19 @@ public:
         if (targetSpeed_ms > 30)
           targetSpeed_ms = 30;
 
-        targetSpeed_ms = targetSpeed_ms - (450 * abs_curvature);
-        if (targetSpeed_ms < 5)
-          targetSpeed_ms = m_speedLimit.curr_limit > 5. ? 5 : m_speedLimit.curr_limit;
+        double low_speed_mode = targetSpeed_ms - (450 * abs_curvature);
+        if (low_speed_mode < 9)
+          low_speed_mode = 9;
+        targetSpeed_ms = low_speed_mode > targetSpeed_ms ? targetSpeed_ms : low_speed_mode;
       }
 
       ROS_INFO("Current Target Speed: %lf", targetSpeed_ms);
+
+      if (parking_flag && m_vehicleState.velocity < 0.01)
+      {
+        m_vehicleState.velocity = 0;
+        return;
+      }
 
       if (targetSpeed_ms > m_vehicleState.velocity)
       {
@@ -493,14 +537,7 @@ public:
     // if (abs(m_midPolyLane.a1 - prev_midpolyfit[1]) > 0.5)
     // {
     //   ROS_INFO("Too Heading Change Track: %lf", m_midPolyLane.a1);
-    //   m_midPolyLane.a0 = prev_midpolyfit[0];
-    //   m_midPolyLane.a1 = prev_midpolyfit[1];
-    //   m_midPolyLane.a2 = prev_midpolyfit[2];
-    //   m_midPolyLane.a3 = prev_midpolyfit[3];
-    // }
-    prev_midpolyfit[0] = m_midPolyLane.a0;
-    prev_midpolyfit[1] = m_midPolyLane.a1;
-    prev_midpolyfit[2] = m_midPolyLane.a2;
+    //   m_midPolyLane.a0 = prev_midpolyfit[0];src/final_project/final_simulator/maps/easy/KusvLane_0.csv src/final_project/final_simulator/maps/easy/KusvLane_1.csv src/final_project/final_simulator/maps/easy/KusvLane_2.csv src/final_project/final_simulator/maps/easy/KusvLane_3.csv
     prev_midpolyfit[3] = m_midPolyLane.a3;
 
     ROS_INFO("(a0, a1, a2, a3) : (%lf, %lf, %lf, %lf)", m_midPolyLane.a0, m_midPolyLane.a1, m_midPolyLane.a2, m_midPolyLane.a3);
@@ -520,7 +557,13 @@ public:
     double a2 = m_midPolyLane.a2;
     double a3 = m_midPolyLane.a3;
     double l_x_d = m_lookAhead_param;
-    double g_x = l_x_d - a2 * 2;
+    double abs_a2 = a2 > 0 ? a2 : -1 * a2;
+    if (abs_a2 > 0.02)
+    {
+      abs_a2 = 0.02; // saturate
+    }
+    double g_x = 10 - 300 * abs_a2;
+    ROS_INFO("Current Lookahead Distance: %lf", g_x);
     double g_y = (a3 * l_x_d * l_x_d * l_x_d) + (a2 * l_x_d * l_x_d) + (a1 * l_x_d) + (a0);
     double l_d = sqrt(g_x * g_x + g_y * g_y);
     double e_l_d = g_y;
@@ -573,7 +616,7 @@ int main(int argc, char **argv)
     {
       prev_csvLaneMarkTime = ros::Time::now().toSec();
     }
-    autonomousDriving.m_marker_pub.publish(autonomousDriving.marker);
+    // autonomousDriving.m_marker_pub.publish(autonomousDriving.marker);
     ros::spinOnce();
     loop_rate.sleep();
   }
