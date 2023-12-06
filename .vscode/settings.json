@@ -3,5 +3,11 @@
         "map": "cpp",
         "vector": "cpp",
         "cmath": "cpp"
-    }
+    },
+    "python.autoComplete.extraPaths": [
+        "/Users/jungcow/miniconda3/envs/ros_env/lib/python3.9/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/Users/jungcow/miniconda3/envs/ros_env/lib/python3.9/site-packages"
+    ]
 }
