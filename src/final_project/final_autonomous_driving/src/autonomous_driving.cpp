@@ -199,35 +199,6 @@ public:
     return laneset;
   }
 
-  // autonomous_msg::LanePointData::_point_type removeOutlier(autonomous_msg::LanePointData::_point_type &points)
-  // {
-  //   int size = points.size();
-  //   autonomous_msg::LanePointData::_point_type filtered_points;
-  //   autonomous_msg::LanePointData::_point_type tmp_points;
-  //   const double distance_threshold = 1.;
-  //   const size_t count_threshold = 2.;
-
-  //   for (int i = 0; i < size; i++)
-  //   {
-  //     for (int j = 0; j < size; j++)
-  //     {
-  //       if (i == j)
-  //         continue;
-
-  //       // ROS_INFO("distance between two points: %lf", std::hypot(abs(points[i].x - points[j].x), abs(points[i].y - points[j].y)));
-  //       if (std::hypot(abs(points[i].x - points[j].x), abs(points[i].y - points[j].y)) < distance_threshold)
-  //       {
-  //         tmp_points.push_back(points[j]);
-  //       }
-  //     }src/final_project/final_simulator/maps/hard/KusvLane_0.csv src/final_project/final_simulator/maps/hard/KusvLane_1.csv src/final_project/final_simulator/maps/hard/KusvLane_2.csv src/final_project/final_simulator/maps/hard/KusvLane_3.csv
-  //     tmp_points.clear();
-  //   }
-  //   ROS_INFO("Before Filtering: %ld", points.size());
-  //   ROS_INFO("After Filtering: %ld", filtered_points.size());
-  //   points.clear();
-  //   return filtered_points;
-  // }
-
   void polyfitLane()
   {
     m_polyLanes.frame_id = m_vehicle_namespace_param + "/body";
@@ -452,8 +423,8 @@ public:
           targetSpeed_ms = 30;
 
         double low_speed_mode = targetSpeed_ms - (450 * abs_curvature);
-        if (low_speed_mode < 15)
-          low_speed_mode = 15;
+        if (low_speed_mode < 9)
+          low_speed_mode = 9;
         targetSpeed_ms = low_speed_mode > targetSpeed_ms ? targetSpeed_ms : low_speed_mode;
       }
 
