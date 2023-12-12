@@ -151,6 +151,44 @@ public:
     m_ROILanePoints = *msg;
   }
 
+  Eigen::VectorXd pointsetToLane(autonomous_msg::LanePointData::_point_type &points)
+  {
+    int down_size = points.size();
+    Eigen::MatrixXd X_Matrix(down_size, 4);
+    Eigen::VectorXd y_Vector(down_size);
+    Eigen::VectorXd a_Vector(4);
+
+    for (int i_point = 0; i_point < down_size; i_point++)
+    {
+      double x = points[i_point].x;
+      double y = points[i_point].y;
+
+      X_Matrix(i_point, 0) = 1;
+      X_Matrix(i_point, 1) = x;
+      X_Matrix(i_point, 2) = x * x;
+      X_Matrix(i_point, 3) = x * x * x;
+      y_Vector(i_point) = y;
+    }
+
+    a_Vector =
+        ((X_Matrix.transpose() * X_Matrix).inverse() * X_Matrix.transpose()) *
+        y_Vector;
+
+    return a_Vector;
+  }
+
+  double magnitudeSaturateValue(double src, double saturate_num)
+  {
+    if (abs(src) > saturate_num)
+    {
+      if (src > 0)
+        src = saturate_num;
+      else
+        src = -saturate_num;
+    }
+    return src;
+  }
+
   autonomous_msg::LanePointDataArray::_lane_type
   separateAndPushLane(autonomous_msg::LanePointData::_point_type &points)
   {
@@ -167,6 +205,8 @@ public:
     double abs_curvature = m_curr_curvature > 0 ? m_curr_curvature : -1 * m_curr_curvature;
 
     double x_range_limit = 19;
+
+    // abs_curvature = magnitudeSaturateValue(abs_curvature)
 
     if (abs_curvature > 0.025)
       abs_curvature = 0.025; // saturated
@@ -198,35 +238,6 @@ public:
     laneset.push_back(right);
     return laneset;
   }
-
-  // autonomous_msg::LanePointData::_point_type removeOutlier(autonomous_msg::LanePointData::_point_type &points)
-  // {
-  //   int size = points.size();
-  //   autonomous_msg::LanePointData::_point_type filtered_points;
-  //   autonomous_msg::LanePointData::_point_type tmp_points;
-  //   const double distance_threshold = 1.;
-  //   const size_t count_threshold = 2.;
-
-  //   for (int i = 0; i < size; i++)
-  //   {
-  //     for (int j = 0; j < size; j++)
-  //     {
-  //       if (i == j)
-  //         continue;
-
-  //       // ROS_INFO("distance between two points: %lf", std::hypot(abs(points[i].x - points[j].x), abs(points[i].y - points[j].y)));
-  //       if (std::hypot(abs(points[i].x - points[j].x), abs(points[i].y - points[j].y)) < distance_threshold)
-  //       {
-  //         tmp_points.push_back(points[j]);
-  //       }
-  //     }src/final_project/final_simulator/maps/hard/KusvLane_0.csv src/final_project/final_simulator/maps/hard/KusvLane_1.csv src/final_project/final_simulator/maps/hard/KusvLane_2.csv src/final_project/final_simulator/maps/hard/KusvLane_3.csv
-  //     tmp_points.clear();
-  //   }
-  //   ROS_INFO("Before Filtering: %ld", points.size());
-  //   ROS_INFO("After Filtering: %ld", filtered_points.size());
-  //   points.clear();
-  //   return filtered_points;
-  // }
 
   void polyfitLane()
   {
@@ -393,14 +404,10 @@ public:
       autonomous_msg::PolyfitLaneData polyLane;
       m_polyLanes.polyfitLanes.pop_back();
       m_polyLanes.polyfitLanes.pop_back();
-      polyLane.a0 = prev_midpolyfit[0];
-      polyLane.a1 = prev_midpolyfit[1];
-      polyLane.a2 = prev_midpolyfit[2];
-      polyLane.a3 = prev_midpolyfit[3];
-      // polyLane.a0 = 0;
-      // polyLane.a1 = 0;
-      // polyLane.a2 = 0;
-      // polyLane.a3 = 0;
+      polyLane.a0 = 0;
+      polyLane.a1 = 0;
+      polyLane.a2 = 0;
+      polyLane.a3 = 0;
       m_polyLanes.polyfitLanes.push_back(polyLane);
       m_polyLanes.polyfitLanes.push_back(polyLane);
     }
@@ -442,18 +449,18 @@ public:
           targetSpeed_ms = targetSpeed_ms > 8 ? 8 : targetSpeed_ms;
       }
       else if (abs(m_curr_curvature) < 0.025 && m_iceMode != "Ice") // gentle curvature
-        targetSpeed_ms = targetSpeed_ms > 15. ? 15 : targetSpeed_ms;
+        targetSpeed_ms = targetSpeed_ms > 17. ? 17 : targetSpeed_ms;
       else // curve
       {
         if (abs_curvature > 0.07)
           abs_curvature = 0.07; // max curvature
 
-        if (targetSpeed_ms > 30)
-          targetSpeed_ms = 30;
+        if (targetSpeed_ms > 20)
+          targetSpeed_ms = 20;
 
         double low_speed_mode = targetSpeed_ms - (450 * abs_curvature);
-        if (low_speed_mode < 15)
-          low_speed_mode = 15;
+        if (low_speed_mode < 9)
+          low_speed_mode = 9;
         targetSpeed_ms = low_speed_mode > targetSpeed_ms ? targetSpeed_ms : low_speed_mode;
       }
 
