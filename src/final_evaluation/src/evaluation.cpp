@@ -156,13 +156,13 @@ public:
 
     m_limitSpeed_ms = 0.0;
 
-    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(50, 20, 100.0));
-    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(20, 30, 200.0));
-    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(30, 80, 300.0));
+    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(80, 20, 100.0));
+    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(80, 30, 200.0));
+    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(80, 80, 300.0));
     m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(80, 45, 400.0));
-    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(45, 80, 500.0));
+    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(85, 80, 500.0));
     m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(80, 50, 800.0));
-    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(50, 50, 2000.0));
+    m_targetSpeedMasterSigns.push_back(SpeedLimitInfo(80, 50, 2000.0));
 
     m_prev_evaluationTime = ros::Time::now().toSec();
   }

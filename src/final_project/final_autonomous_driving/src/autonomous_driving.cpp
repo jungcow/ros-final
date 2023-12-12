@@ -151,6 +151,52 @@ public:
     m_ROILanePoints = *msg;
   }
 
+  Eigen::VectorXd pointsetToLane(autonomous_msg::LanePointData::_point_type &points)
+  {
+    int down_size = points.size();
+    Eigen::MatrixXd X_Matrix(down_size, 4);
+    Eigen::VectorXd y_Vector(down_size);
+    Eigen::VectorXd a_Vector(4);
+
+    for (int i_point = 0; i_point < down_size; i_point++)
+    {
+      double x = points[i_point].x;
+      double y = points[i_point].y;
+
+      X_Matrix(i_point, 0) = 1;
+      X_Matrix(i_point, 1) = x;
+      X_Matrix(i_point, 2) = x * x;
+      X_Matrix(i_point, 3) = x * x * x;
+      y_Vector(i_point) = y;
+    }
+
+    a_Vector =
+        ((X_Matrix.transpose() * X_Matrix).inverse() * X_Matrix.transpose()) *
+        y_Vector;
+
+    return a_Vector;
+  }
+
+  double magnitudeSaturateValue(double src, double saturate_num)
+  {
+    if (abs(src) > saturate_num)
+    {
+      if (src > 0)
+        src = saturate_num;
+      else
+        src = -saturate_num;
+    }
+    return src;
+  }
+
+  struct PointComp
+  {
+    bool operator()(const autonomous_msg::PointWithArclength &a, const autonomous_msg::PointWithArclength &b)
+    {
+      return a.x < b.x;
+    }
+  };
+
   autonomous_msg::LanePointDataArray::_lane_type
   separateAndPushLane(autonomous_msg::LanePointData::_point_type &points)
   {
@@ -158,27 +204,22 @@ public:
     autonomous_msg::LanePointData left;
     autonomous_msg::LanePointData right;
     autonomous_msg::LanePointData mid;
-
     autonomous_msg::LanePointDataArray::_lane_type laneset;
     const double epsilon = 0.25;
-
-    ROS_INFO("Current Curvature: %lf", m_curr_curvature);
-
     double abs_curvature = m_curr_curvature > 0 ? m_curr_curvature : -1 * m_curr_curvature;
-
     double x_range_limit = 19;
 
-    if (abs_curvature > 0.025)
-      abs_curvature = 0.025; // saturated
-
+    abs_curvature = magnitudeSaturateValue(abs_curvature, 0.025);
     x_range_limit = x_range_limit - abs_curvature * 500;
-
     if (abs_curvature < 0.001)
-    {
       x_range_limit = 19;
-    }
+
+    // ========================================================================
 
     ROS_INFO("Current X View Limit: %lf", x_range_limit);
+    ROS_INFO("Current Curvature: %lf", m_curr_curvature);
+
+    // ========================================================================
 
     for (auto &point : points)
     {
@@ -194,11 +235,44 @@ public:
     }
     left.id = "0";
     right.id = "1";
+    sort(left.point.begin(), left.point.end(), PointComp());
+    sort(right.point.begin(), right.point.end(), PointComp());
     laneset.push_back(left);
     laneset.push_back(right);
     return laneset;
   }
 
+  // void movingAverage(autonomous_msg::LanePointData::_point_type &data, int windowsize, autonomous_msg::LanePointData::_point_type &new_points)
+  // {
+  //   autonomous_msg::LanePointData::_point_type smoothed_data;
+  //   int data_size = data.size();
+  //   if (windowsize >= data_size)
+  //   {
+  //     return;
+  //   }
+
+  //   double window_sum_x = 0.0;
+  //   double window_sum_y = 0.0;
+  //   int start = 0, end = 0;
+  //   for (end = 0; end < windowsize; end++)
+  //   {
+  //     window_sum_x += data[end].x;
+  //     window_sum_y += data[end].y;
+  //   }
+  //   for (; end < data_size; end++)
+  //   {
+  //     autonomous_msg::PointWithArclength smoothed_point;
+  //     smoothed_point.x = window_sum_x / windowsize;
+  //     smoothed_point.y = window_sum_y / windowsize;
+  //     smoothed_data.push_back(smoothed_point);
+  //     window_sum_y += data[end].y - data[start].y;
+  //     window_sum_x += data[end].x - data[start].x;
+  //     start++;
+  //   }
+  //   smoothed_data.push_back(data[start]);
+  //   new_points.insert(new_points.end(), smoothed_data.begin(), smoothed_data.end());
+  // }
+  
   void polyfitLane()
   {
     m_polyLanes.frame_id = m_vehicle_namespace_param + "/body";
@@ -216,13 +290,11 @@ public:
       return;
 
     m_ROILanes.lane = separateAndPushLane(m_ROILanePoints.point);
-    // m_ROILanes.lane[0].point = removeOutlier(m_ROILanes.lane[0].point);
-    // m_ROILanes.lane[1].point = removeOutlier(m_ROILanes.lane[1].point);
 
     ROS_INFO("Left lane size: %ld", m_ROILanes.lane[0].point.size());
     ROS_INFO("Right lane size: %ld", m_ROILanes.lane[1].point.size());
 
-    const int lane_efficient_num = 6; // least number of point for get coeff(a0, a1, a2, a3)
+    const int lane_efficient_num = 5; // least number of point for get coeff(a0, a1, a2, a3)
     bool no_lane_flag = false;
 
     if (m_ROILanes.lane[0].point.size() < lane_efficient_num &&
@@ -231,18 +303,11 @@ public:
 
     for (auto i_lane = 0; i_lane < m_ROILanes.lane.size(); i_lane++)
     {
-      // Eigen의 매트릭스를 차선의 포인트 갯수에 맞게 생성한다.
+      autonomous_msg::PolyfitLaneData polyLane;
       int down_size = (m_ROILanes.lane[i_lane].point.size());
-      Eigen::MatrixXd X_Matrix(down_size, 4);
-      Eigen::VectorXd y_Vector(down_size);
-      Eigen::VectorXd a_Vector(4);
 
-      // Eigen의 매트릭스에 포인트를 넣어준다.
       if (down_size < lane_efficient_num)
       {
-        autonomous_msg::PolyfitLaneData polyLane;
-        polyLane.frame_id = m_vehicle_namespace_param + "/body";
-        polyLane.id = m_ROILanes.lane[i_lane].id;
         if (m_ROILanes.lane[i_lane].id == "0")
         {
           ROS_INFO("No Left lane: %s", m_ROILanes.lane[i_lane].id.c_str());
@@ -261,78 +326,21 @@ public:
           polyLane.a3 = prev_polyfit[0][3];
           // ROS_INFO("R -- (a0, a1, a2, a3) \n: (%lf, %lf, %lf, %lf)", polyLane.a0, polyLane.a1, polyLane.a2, polyLane.a3);
         }
-
-        if (abs(polyLane.a2) > 0.1)
-        {
-          ROS_INFO("Polyfit is insane!!! curvature is : %lf\n", polyLane.a2);
-          if (m_ROILanes.lane[i_lane].id == "0")
-          {
-            ROS_INFO("LEFT is INSANE!!!!!!!!!!!!!!!!!!!!");
-            // polyLane.a0 = prev_polyfit[1][0] + 4;
-            // polyLane.a1 = prev_polyfit[1][1];
-            // polyLane.a2 = prev_polyfit[1][2];
-            // polyLane.a3 = prev_polyfit[1][3];
-            polyLane.a0 = +2;
-            polyLane.a1 = 0;
-            polyLane.a2 = 0;
-            polyLane.a3 = 0;
-          }
-          else if (m_ROILanes.lane[i_lane].id == "1")
-          {
-            ROS_INFO("RIGHT is INSANE!!!!!!!!!!!!!!!!!!!!");
-            // polyLane.a0 = prev_polyfit[0][0] - 4;
-            // polyLane.a1 = prev_polyfit[0][1];
-            // polyLane.a2 = prev_polyfit[0][2];
-            // polyLane.a3 = prev_polyfit[0][3];
-            polyLane.a0 = -2;
-            polyLane.a1 = 0;
-            polyLane.a2 = 0;
-            polyLane.a3 = 0;
-          }
-          for (auto &point : m_ROILanes.lane[i_lane].point)
-          {
-            ROS_INFO("Insane Lane's Points(%s): (%lf, %lf)", m_ROILanes.id.c_str(), point.x, point.y);
-          }
-        }
-
-        m_polyLanes.polyfitLanes.push_back(polyLane);
-        continue;
       }
-      for (int i_point = 0; i_point < down_size; i_point++)
+      else
       {
-        double x = m_ROILanes.lane[i_lane].point[i_point].x;
-        double y = m_ROILanes.lane[i_lane].point[i_point].y;
-
-        X_Matrix(i_point, 0) = 1;
-        X_Matrix(i_point, 1) = x;
-        X_Matrix(i_point, 2) = x * x;
-        X_Matrix(i_point, 3) = x * x * x;
-        y_Vector(i_point) = y;
+        Eigen::VectorXd a_Vector = pointsetToLane(m_ROILanes.lane[i_lane].point);
+        polyLane.a0 = a_Vector(0);
+        polyLane.a1 = a_Vector(1);
+        polyLane.a2 = a_Vector(2);
+        polyLane.a3 = a_Vector(3);
       }
-
-      a_Vector =
-          ((X_Matrix.transpose() * X_Matrix).inverse() * X_Matrix.transpose()) *
-          y_Vector;
-
-      autonomous_msg::PolyfitLaneData polyLane;
-      polyLane.frame_id = m_vehicle_namespace_param + "/body";
-      polyLane.id = m_ROILanes.lane[i_lane].id;
-
-      polyLane.a0 = a_Vector(0);
-      polyLane.a1 = a_Vector(1);
-      polyLane.a2 = a_Vector(2);
-      polyLane.a3 = a_Vector(3);
-
       if (abs(polyLane.a2) > 0.1)
       {
         ROS_INFO("Polyfit is insane!!! curvature is : %lf\n", polyLane.a2);
         if (m_ROILanes.lane[i_lane].id == "0")
         {
           ROS_INFO("LEFT is INSANE!!!!!!!!!!!!!!!!!!!!");
-          // polyLane.a0 = prev_polyfit[1][0] + 4;
-          // polyLane.a1 = prev_polyfit[1][1];
-          // polyLane.a2 = prev_polyfit[1][2];
-          // polyLane.a3 = prev_polyfit[1][3];
           polyLane.a0 = +2;
           polyLane.a1 = 0;
           polyLane.a2 = 0;
@@ -341,10 +349,6 @@ public:
         else if (m_ROILanes.lane[i_lane].id == "1")
         {
           ROS_INFO("RIGHT is INSANE!!!!!!!!!!!!!!!!!!!!");
-          // polyLane.a0 = prev_polyfit[0][0] - 4;
-          // polyLane.a1 = prev_polyfit[0][1];
-          // polyLane.a2 = prev_polyfit[0][2];
-          // polyLane.a3 = prev_polyfit[0][3];
           polyLane.a0 = -2;
           polyLane.a1 = 0;
           polyLane.a2 = 0;
@@ -355,8 +359,8 @@ public:
           ROS_INFO("Insane Lane's Points(%s): (%lf, %lf)", m_ROILanes.id.c_str(), point.x, point.y);
         }
       }
-
-      // ROS_INFO("1 -- (a0, a1, a2, a3) \n: (%lf, %lf, %lf, %lf)", polyLane.a0, polyLane.a1, polyLane.a2, polyLane.a3);
+      polyLane.frame_id = m_vehicle_namespace_param + "/body";
+      polyLane.id = m_ROILanes.lane[i_lane].id;
       m_polyLanes.polyfitLanes.push_back(polyLane);
     }
     if (no_lane_flag)
@@ -364,14 +368,10 @@ public:
       autonomous_msg::PolyfitLaneData polyLane;
       m_polyLanes.polyfitLanes.pop_back();
       m_polyLanes.polyfitLanes.pop_back();
-      polyLane.a0 = prev_midpolyfit[0];
-      polyLane.a1 = prev_midpolyfit[1];
-      polyLane.a2 = prev_midpolyfit[2];
-      polyLane.a3 = prev_midpolyfit[3];
-      // polyLane.a0 = 0;
-      // polyLane.a1 = 0;
-      // polyLane.a2 = 0;
-      // polyLane.a3 = 0;
+      polyLane.a0 = 0;
+      polyLane.a1 = 0;
+      polyLane.a2 = 0;
+      polyLane.a3 = 0;
       m_polyLanes.polyfitLanes.push_back(polyLane);
       m_polyLanes.polyfitLanes.push_back(polyLane);
     }
@@ -408,23 +408,24 @@ public:
       else if (m_iceMode == "Ice") // road mode is ice
       {
         if (abs_curvature < 0.007)
-          targetSpeed_ms = targetSpeed_ms > 15 ? 15 : targetSpeed_ms;
+          targetSpeed_ms = targetSpeed_ms > 7.5 ? 7.5 : targetSpeed_ms;
         else
-          targetSpeed_ms = targetSpeed_ms > 8 ? 8 : targetSpeed_ms;
+          targetSpeed_ms = targetSpeed_ms > 7.5 ? 7.5 : targetSpeed_ms;
       }
       else if (abs(m_curr_curvature) < 0.025 && m_iceMode != "Ice") // gentle curvature
-        targetSpeed_ms = targetSpeed_ms > 15. ? 15 : targetSpeed_ms;
+        targetSpeed_ms = targetSpeed_ms > 17. ? 17 : targetSpeed_ms;
       else // curve
       {
         if (abs_curvature > 0.07)
           abs_curvature = 0.07; // max curvature
 
-        if (targetSpeed_ms > 30)
-          targetSpeed_ms = 30;
+        if (targetSpeed_ms > 20)
+          targetSpeed_ms = 20;
 
         double low_speed_mode = targetSpeed_ms - (450 * abs_curvature);
-        if (low_speed_mode < 9)
-          low_speed_mode = 9;
+        
+        if (low_speed_mode < 8)
+          low_speed_mode = 8;
         targetSpeed_ms = low_speed_mode > targetSpeed_ms ? targetSpeed_ms : low_speed_mode;
       }
 
@@ -514,6 +515,7 @@ public:
       abs_a2 = 0.02; // saturate
     }
     double g_x = 10 - 300 * abs_a2;
+    l_x_d = g_x;
     ROS_INFO("Current Lookahead Distance: %lf", g_x);
     double g_y = (a3 * l_x_d * l_x_d * l_x_d) + (a2 * l_x_d * l_x_d) + (a1 * l_x_d) + (a0);
     double l_d = sqrt(g_x * g_x + g_y * g_y);
