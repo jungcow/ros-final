@@ -272,7 +272,7 @@ public:
   //   smoothed_data.push_back(data[start]);
   //   new_points.insert(new_points.end(), smoothed_data.begin(), smoothed_data.end());
   // }
-
+  
   void polyfitLane()
   {
     m_polyLanes.frame_id = m_vehicle_namespace_param + "/body";
@@ -423,6 +423,7 @@ public:
           targetSpeed_ms = 20;
 
         double low_speed_mode = targetSpeed_ms - (450 * abs_curvature);
+        
         if (low_speed_mode < 8)
           low_speed_mode = 8;
         targetSpeed_ms = low_speed_mode > targetSpeed_ms ? targetSpeed_ms : low_speed_mode;
