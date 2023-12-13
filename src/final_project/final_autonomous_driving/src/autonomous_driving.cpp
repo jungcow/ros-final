@@ -226,7 +226,7 @@ public:
       double x = point.x;
       double y = point.y;
 
-      if (x > x_range_limit || x < -5)
+      if (x > x_range_limit)
         continue;
       if (y > epsilon && y < 4 - epsilon)
         left.point.push_back(point);
@@ -242,37 +242,7 @@ public:
     return laneset;
   }
 
-  // void movingAverage(autonomous_msg::LanePointData::_point_type &data, int windowsize, autonomous_msg::LanePointData::_point_type &new_points)
-  // {
-  //   autonomous_msg::LanePointData::_point_type smoothed_data;
-  //   int data_size = data.size();
-  //   if (windowsize >= data_size)
-  //   {
-  //     return;
-  //   }
 
-  //   double window_sum_x = 0.0;
-  //   double window_sum_y = 0.0;
-  //   int start = 0, end = 0;
-  //   for (end = 0; end < windowsize; end++)
-  //   {
-  //     window_sum_x += data[end].x;
-  //     window_sum_y += data[end].y;
-  //   }
-  //   for (; end < data_size; end++)
-  //   {
-  //     autonomous_msg::PointWithArclength smoothed_point;
-  //     smoothed_point.x = window_sum_x / windowsize;
-  //     smoothed_point.y = window_sum_y / windowsize;
-  //     smoothed_data.push_back(smoothed_point);
-  //     window_sum_y += data[end].y - data[start].y;
-  //     window_sum_x += data[end].x - data[start].x;
-  //     start++;
-  //   }
-  //   smoothed_data.push_back(data[start]);
-  //   new_points.insert(new_points.end(), smoothed_data.begin(), smoothed_data.end());
-  // }
-  
   void polyfitLane()
   {
     m_polyLanes.frame_id = m_vehicle_namespace_param + "/body";
@@ -407,10 +377,10 @@ public:
       }
       else if (m_iceMode == "Ice") // road mode is ice
       {
-        if (abs_curvature < 0.007)
+        if (abs_curvature < 0.025)
           targetSpeed_ms = targetSpeed_ms > 7.5 ? 7.5 : targetSpeed_ms;
         else
-          targetSpeed_ms = targetSpeed_ms > 7.5 ? 7.5 : targetSpeed_ms;
+          targetSpeed_ms = targetSpeed_ms > 6. ? 6. : targetSpeed_ms;
       }
       else if (abs(m_curr_curvature) < 0.025 && m_iceMode != "Ice") // gentle curvature
         targetSpeed_ms = targetSpeed_ms > 17. ? 17 : targetSpeed_ms;
@@ -423,11 +393,13 @@ public:
           targetSpeed_ms = 20;
 
         double low_speed_mode = targetSpeed_ms - (450 * abs_curvature);
-        
+
         if (low_speed_mode < 8)
           low_speed_mode = 8;
         targetSpeed_ms = low_speed_mode > targetSpeed_ms ? targetSpeed_ms : low_speed_mode;
       }
+
+      targetSpeed_ms = magnitudeSaturateValue(targetSpeed_ms, 20.0);
 
       ROS_INFO("Current Target Speed: %lf", targetSpeed_ms);
 
@@ -515,7 +487,7 @@ public:
       abs_a2 = 0.02; // saturate
     }
     double g_x = 10 - 300 * abs_a2;
-    l_x_d = g_x;
+    // l_x_d = g_x;
     ROS_INFO("Current Lookahead Distance: %lf", g_x);
     double g_y = (a3 * l_x_d * l_x_d * l_x_d) + (a2 * l_x_d * l_x_d) + (a1 * l_x_d) + (a0);
     double l_d = sqrt(g_x * g_x + g_y * g_y);
